@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getAgriculturalRecommendation } from './services/aiService';
+import { generateAgriculturalRecommendation } from './services/aiService';
 import { getRealTimeWeather } from './services/weatherService';
+import { buildAlertList } from './services/alertService';
 
 const fallbackWeather = {
   temp: 20,
@@ -172,53 +173,11 @@ export default function App() {
   // =========================
   // ALERTAS
   // =========================
-  const getAlerts = () => {
-    const list = [];
-
-    if (weatherData.humidity >= 80) {
-      list.push({
-        id: 'humidity',
-        type: 'danger',
-        icon: '💧',
-        title: 'Riesgo por humedad elevada',
-        msg: `La humedad en ${currentLocation} alcanza ${weatherData.humidity}%. Vigila la aparición de hongos en hojas y tallos.`
-      });
-    }
-
-    if (weatherData.rain >= 70) {
-      list.push({
-        id: 'rain',
-        type: 'warning',
-        icon: '🌧️',
-        title: 'Lluvia prevista',
-        msg: 'Evita realizar riego adicional y revisa el drenaje de tus parcelas.'
-      });
-    }
-
-    if (weatherData.temp >= 30) {
-      list.push({
-        id: 'heat',
-        type: 'warning',
-        icon: '☀️',
-        title: 'Temperatura elevada',
-        msg: 'Existe riesgo de estrés térmico. Revisa la humedad del suelo.'
-      });
-    }
-
-    crops.forEach((crop) => {
-      list.push({
-        id: `crop-${crop.id}`,
-        type: 'info',
-        icon: '🌱',
-        title: `${crop.name} bajo monitoreo`,
-        msg: `Variedad ${crop.variety || 'no especificada'}. Cosecha estimada: ${crop.harvestDate || 'pendiente'}.`
-      });
-    });
-
-    return list;
-  };
-
-  const alerts = getAlerts();
+  const alerts = buildAlertList({
+    weatherData,
+    currentLocation,
+    crops
+  });
 
   // =========================
   // RECOMENDACIÓN AUTOMÁTICA
@@ -313,7 +272,7 @@ export default function App() {
 
     try {
       const aiResponseText =
-        await getAgriculturalRecommendation({
+        await generateAgriculturalRecommendation({
           crop: activeCrop.name,
           variety: activeCrop.variety,
           location: activeCrop.location,
@@ -1511,6 +1470,23 @@ export default function App() {
 
               <div>
                 <label className="text-[10px] text-slate-400 font-bold uppercase">
+                  Departamento
+                </label>
+
+                <input
+                  value={profile.department}
+                  onChange={(e) =>
+                    setProfile({
+                      ...profile,
+                      department: e.target.value
+                    })
+                  }
+                  className="w-full mt-1 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold uppercase">
                   Teléfono
                 </label>
 
@@ -1526,8 +1502,33 @@ export default function App() {
                 />
               </div>
 
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-[10px] text-emerald-800">
-                ✓ Tu información se guarda automáticamente en este dispositivo.
+              <div className="flex items-center justify-between gap-3">
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-[10px] text-emerald-800">
+                  ✓ Tu información se guarda automáticamente en este dispositivo.
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      localStorage.setItem('agro_profile', JSON.stringify(profile));
+                      // trigger temporary visual confirmation
+                      if (typeof window !== 'undefined') {
+                        const el = document.getElementById('profile-saved-toast');
+                        if (el) {
+                          el.classList.remove('opacity-0');
+                          setTimeout(() => el.classList.add('opacity-0'), 2200);
+                        }
+                      }
+                    }}
+                    className="text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 rounded-xl"
+                  >
+                    Guardar perfil
+                  </button>
+
+                  <div id="profile-saved-toast" className="opacity-0 transition-opacity text-[12px] text-emerald-700">
+                    ✓ Guardado
+                  </div>
+                </div>
               </div>
 
             </div>
